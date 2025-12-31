@@ -1,0 +1,11 @@
+---
+- hosts: gitea_server
+  become: yes
+  gather_facts: no
+
+  # Load local secrets (ignored by Git)
+  vars_files:
+    - secrets.yml
+
+  roles:
+    - gitea

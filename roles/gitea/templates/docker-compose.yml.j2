@@ -1,0 +1,48 @@
+services:
+  server:
+    # Build from the generated Dockerfile to include custom CAs
+    build: .
+    container_name: gitea
+    restart: always
+    
+    # LXC/Proxmox security compatibility
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      
+      # Gitea Configuration
+      - GITEA__server__ROOT_URL=https://{{ gitea_domain }}/
+      - GITEA__server__DOMAIN={{ gitea_domain }}
+      - GITEA__server__PROTOCOL=https
+      - GITEA__server__HTTP_PORT={{ gitea_container_http_port }}
+      
+      # Internal paths to SSL certs (mapped via volumes below)
+      - GITEA__server__CERT_FILE=/data/certs/gitea.crt
+      - GITEA__server__KEY_FILE=/data/certs/gitea.key
+
+    ports:
+      # Expose HTTPS and HTTP (mapped to internal port 3000)
+      - "443:{{ gitea_container_http_port }}"
+      - "80:{{ gitea_container_http_port }}"
+      - "2222:22"
+
+    volumes:
+      # Persistent Gitea Data (Repositories, DB)
+      - gitea_data:/data
+      
+      # Mount SSL certificates (Read-Only)
+      - {{ gitea_ssl_dir }}/gitea.crt:/data/certs/gitea.crt:ro
+      - {{ gitea_ssl_dir }}/gitea.key:/data/certs/gitea.key:ro
+      
+      # Timezone synchronization with Host
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+
+# Define external volume to prevent data loss during container recreation
+volumes:
+  gitea_data:
+    external: true

@@ -1,0 +1,13 @@
+---
+- name: Rebuild Gitea
+  community.docker.docker_compose_v2:
+    project_src: "{{ gitea_install_dir }}"
+    build: always
+    state: present
+    pull: never
+
+- name: Restart Gitea
+  community.docker.docker_compose_v2:
+    project_src: "{{ gitea_install_dir }}"
+    state: present
+    restarted: yes

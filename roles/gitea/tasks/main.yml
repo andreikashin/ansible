@@ -1,0 +1,88 @@
+---
+# --- PRE-FLIGHT CHECKS (Localhost) ---
+- name: "Pre-flight: Check if Gitea SSL Key exists locally"
+  stat:
+    path: "{{ role_path }}/files/ssl/gitea.key"
+  delegate_to: localhost
+  register: ssl_key_check
+
+- name: "Fail if SSL Key is missing"
+  fail:
+    msg: >
+      ERROR: Private key not found!
+      Please download 'gitea.key' and 'gitea.crt' from OPNsense
+      and place them into: {{ role_path }}/files/ssl/
+  when: not ssl_key_check.stat.exists
+
+# --- SERVER SETUP ---
+- name: Create installation directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ gitea_install_dir }}"
+    - "{{ gitea_install_dir }}/custom_cas"
+
+- name: Create secure SSL directory
+  file:
+    path: "{{ gitea_ssl_dir }}"
+    state: directory
+    mode: '0700' # Restricted access
+
+# --- CERTIFICATES MANAGEMENT ---
+
+# 1. Trust Anchors (Root CAs)
+- name: Upload Jenkins CA Certificate (Trust)
+  copy:
+    src: "trust/jenkins_ca.crt"
+    dest: "{{ gitea_install_dir }}/custom_cas/jenkins_ca.crt"
+    mode: '0644'
+  notify: Rebuild Gitea
+
+# 2. Server Identity (SSL)
+- name: Upload Gitea Server Certificate (Public)
+  copy:
+    src: "ssl/gitea.crt"
+    dest: "{{ gitea_ssl_dir }}/gitea.crt"
+    mode: '0644'
+  notify: Restart Gitea
+
+- name: Upload Gitea Server Key (Private)
+  copy:
+    src: "ssl/gitea.key"
+    dest: "{{ gitea_ssl_dir }}/gitea.key"
+    mode: '0600' # Secure permissions
+  notify: Restart Gitea
+
+# --- DOCKER CONFIGURATION ---
+
+- name: Generate Dockerfile on server
+  copy:
+    dest: "{{ gitea_install_dir }}/Dockerfile"
+    content: |
+      FROM gitea/gitea:latest
+      # Explicitly copy the Jenkins CA into the image trust store
+      COPY custom_cas/jenkins_ca.crt /usr/local/share/ca-certificates/jenkins_ca.crt
+      # Update system trust store
+      RUN update-ca-certificates
+  notify: Rebuild Gitea
+
+- name: Generate docker-compose.yml from template
+  template:
+    src: "docker-compose.yml.j2"
+    dest: "{{ gitea_install_dir }}/docker-compose.yml"
+  notify: Rebuild Gitea
+
+# --- DEPLOYMENT ---
+
+- name: Ensure persistent data volume exists
+  command: docker volume create gitea_data
+  register: volume_create
+  changed_when: "volume_create.rc == 0 and 'gitea_data' not in volume_create.stdout"
+  failed_when: false
+
+- name: Start Gitea Stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ gitea_install_dir }}"
+    state: present

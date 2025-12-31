@@ -1,0 +1,4 @@
+!.gitignore
+roles/gitea/files/ssl/*
+
+secrets.yml

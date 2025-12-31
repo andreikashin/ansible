@@ -1,0 +1,10 @@
+# --- INSTALLATION DEFAULTS ---
+
+# Directory where Gitea stack will be deployed
+gitea_install_dir: /opt/gitea
+
+# Directory for SSL certificates on the server
+gitea_ssl_dir: /etc/gitea/certs
+
+# Internal container port (do not change unless you modify the image)
+gitea_container_http_port: 3000
