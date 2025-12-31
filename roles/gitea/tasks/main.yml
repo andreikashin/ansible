@@ -49,18 +49,20 @@
     src: "trust/root_ca.crt"
     dest: "{{ gitea_ssl_dir }}/root_ca.crt"
     mode: '0644'
-    owner: "1000"
-    group: "1000"
+    owner: '1000'
+    group: '1000'
+  notify: Restart Gitea
 
 - name: Create custom CA bundle for Gitea
   shell: "cat /etc/ssl/certs/ca-certificates.crt {{ gitea_ssl_dir }}/root_ca.crt > {{ gitea_ssl_dir }}/gitea_bundle.crt"
+  notify: Restart Gitea
 
 - name: Fix permissions on custom bundle
   file:
     path: "{{ gitea_ssl_dir }}/gitea_bundle.crt"
     mode: '0644'
-    owner: "1000"
-    group: "1000"
+    owner: '1000'
+    group: '1000'
   notify: Restart Gitea
 
 # --- 5. UPLOAD SSL FOR GITEA ---
