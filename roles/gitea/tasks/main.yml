@@ -47,9 +47,21 @@
 - name: Upload Jenkins CA to Host System
   copy:
     src: "trust/jenkins_ca.crt"
-    dest: "/usr/local/share/ca-certificates/jenkins_ca.crt"
+    dest: "{{ gitea_ssl_dir }}/jenkins_ca.crt"
     mode: '0644'
-  notify: Update CA Host
+    owner: "1000"
+    group: "1000"
+
+- name: Create custom CA bundle for Gitea
+  shell: "cat /etc/ssl/certs/ca-certificates.crt {{ gitea_ssl_dir }}/jenkins_ca.crt > {{ gitea_ssl_dir }}/gitea_bundle.crt"
+
+- name: Fix permissions on custom bundle
+  file:
+    path: "{{ gitea_ssl_dir }}/gitea_bundle.crt"
+    mode: '0644'
+    owner: "1000"
+    group: "1000"
+  notify: Restart Gitea
 
 # --- 5. UPLOAD SSL FOR GITEA ---
 - name: Upload Gitea Server Certificate (Public)
