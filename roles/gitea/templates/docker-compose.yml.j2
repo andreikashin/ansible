@@ -1,7 +1,6 @@
 services:
   server:
-    # Build from the generated Dockerfile to include custom CAs
-    build: .
+    image: gitea/gitea:latest
     container_name: gitea
     restart: always
     
@@ -37,6 +36,7 @@ services:
       # Mount SSL certificates (Read-Only)
       - {{ gitea_ssl_dir }}/gitea.crt:/data/certs/gitea.crt:ro
       - {{ gitea_ssl_dir }}/gitea.key:/data/certs/gitea.key:ro
+      - /etc/ssl/certs:/etc/ssl/certs:ro
       
       # Timezone synchronization with Host
       - /etc/timezone:/etc/timezone:ro
