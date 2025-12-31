@@ -1,4 +1,5 @@
 !.gitignore
-roles/gitea/files/ssl/*
+roles/gitea/files/ssl/*.crt
+roles/gitea/files/ssl/*.key
 
 secrets.yml
