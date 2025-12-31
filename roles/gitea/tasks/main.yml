@@ -4,6 +4,7 @@
   stat:
     path: "{{ role_path }}/files/ssl/gitea.key"
   delegate_to: localhost
+  become: no
   register: ssl_key_check
 
 - name: "Fail if SSL Key is missing"
