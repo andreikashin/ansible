@@ -1,11 +1,5 @@
----
-- hosts: gitea_server
+- name: Deploy Gitea
+  hosts: gitea_group
   become: yes
-  gather_facts: no
-
-  # Load local secrets (ignored by Git)
-  vars_files:
-    - secrets.yml
-
   roles:
     - gitea

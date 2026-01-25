@@ -1,0 +1,62 @@
+---
+- name: Copy custom CA certificate
+  copy:
+    # Ansible возьмет любой файл из папки files/trust/
+    src: "{{ item }}"
+    dest: "/usr/local/share/ca-certificates/{{ item | basename }}"
+    mode: '0644'
+  # Этот цикл найдет все файлы в папке trust локально
+  with_fileglob:
+    - "roles/npm/files/trust/*"
+  notify: Update CA store
+
+- name: Install system dependencies
+  apt:
+    name:
+      - curl
+      - git
+    state: present
+    update_cache: yes
+
+- name: Install Docker (using official script)
+  shell: "curl -fsSL https://get.docker.com | sh"
+  args:
+    creates: /usr/bin/docker
+
+- name: Create app directory
+  file:
+    path: "{{ npm_install_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copy Docker Compose template
+  template:
+    src: compose.yml.j2
+    dest: "{{ npm_install_dir }}/compose.yml"
+    mode: '0644'
+  notify: Restart NPM
+
+- name: Start Nginx Proxy Manager
+  command: docker compose up -d
+  args:
+    chdir: "{{ npm_install_dir }}"
+  register: docker_output
+  changed_when: "'Started' in docker_output.stdout or 'Recreated' in docker_output.stdout"
+
+- name: Disable password authentication for SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    state: present
+  notify: Restart SSH
+
+- name: Disable root login via SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+  notify: Restart SSH

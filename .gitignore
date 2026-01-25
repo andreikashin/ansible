@@ -1,5 +1,11 @@
 !.gitignore
-roles/gitea/files/ssl/*.crt
-roles/gitea/files/ssl/*.key
 
+host_vars/*
+!host_vars/*.template
 secrets.yml
+secrets.yaml
+*.crt
+*.key
+*.pem
+*.env
+*.log

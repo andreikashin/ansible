@@ -14,8 +14,8 @@ services:
       - USER_GID=1000
       
       # Gitea Configuration
-      - GITEA__server__ROOT_URL=https://{{ gitea_domain }}/
-      - GITEA__server__DOMAIN={{ gitea_domain }}
+      - GITEA__server__ROOT_URL=https://{{ node_domain }}/
+      - GITEA__server__DOMAIN={{ node_domain }}
       - GITEA__server__PROTOCOL=https
       - GITEA__server__HTTP_PORT={{ gitea_container_http_port }}
       

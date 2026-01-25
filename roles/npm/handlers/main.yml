@@ -1,0 +1,13 @@
+---
+- name: Update CA store
+  shell: /usr/sbin/update-ca-certificates
+
+- name: Restart NPM
+  command: docker compose up -d --force-recreate
+  args:
+    chdir: "{{ npm_install_dir }}"
+
+- name: Restart SSH
+  service:
+    name: ssh
+    state: restarted

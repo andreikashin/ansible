@@ -1,0 +1,5 @@
+- name: Deploy Nginx Proxy Manager
+  hosts: npm_group
+  become: yes
+  roles:
+    - npm

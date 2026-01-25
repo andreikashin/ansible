@@ -1,0 +1,7 @@
+# Installation directory for NPM server
+npm_install_dir: /app
+
+# Ports (external)
+npm_http_port: 80
+npm_https_port: 443
+npm_admin_port: 81
