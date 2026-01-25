@@ -1,0 +1,39 @@
+---
+- name: Install system dependencies
+  apt:
+    name: [curl, git]
+    state: present
+    update_cache: yes
+
+- name: Install Docker
+  shell: "curl -fsSL https://get.docker.com | sh"
+  args:
+    creates: /usr/bin/docker
+
+- name: Create app directory
+  file:
+    path: "{{ jenkins_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Ensure data directory permissions are ROOT
+  file:
+    path: "{{ jenkins_install_dir }}/data"
+    state: directory
+    owner: "root"
+    group: "root"
+    recurse: yes
+
+- name: Copy Docker Compose template
+  template:
+    src: compose.yml.j2
+    dest: "{{ jenkins_install_dir }}/compose.yml"
+    mode: '0644'
+  notify: Restart Jenkins
+
+- name: Start Jenkins via Docker Compose
+  command: docker compose up -d
+  args:
+    chdir: "{{ jenkins_install_dir }}"
+  register: docker_output
+  changed_when: "'Started' in docker_output.stdout or 'Recreated' in docker_output.stdout"
