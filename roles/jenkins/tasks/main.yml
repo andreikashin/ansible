@@ -5,6 +5,22 @@
     state: present
     update_cache: yes
 
+- name: Ensure certs directory exists
+  file:
+    path: "{{ jenkins_install_dir }}/certs"
+    state: directory
+    mode: '0755'
+
+- name: Copy custom CA certificate
+  copy:
+    # Ansible возьмет любой файл из папки files/trust/
+    src: "{{ item }}"
+    dest: "{{ jenkins_install_dir }}/certs/root_ca.crt"
+    mode: '0644'
+  with_fileglob:
+    - "roles/jenkins/files/trust/*"
+  notify: Restart Jenkins
+
 - name: Install Docker
   shell: "curl -fsSL https://get.docker.com | sh"
   args:
