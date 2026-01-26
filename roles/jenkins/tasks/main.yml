@@ -10,6 +10,12 @@
   args:
     creates: /usr/bin/docker
 
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
 - name: Create app directory
   file:
     path: "{{ jenkins_install_dir }}"

@@ -1,1 +1,5 @@
 jenkins_install_dir: /app/jenkins
+
+# Internal container ports (matched to your Docker Compose template)
+jenkins_http_port: 8080
+jenkins_agent_port: 50000
