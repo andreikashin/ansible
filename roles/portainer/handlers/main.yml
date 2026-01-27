@@ -1,0 +1,8 @@
+---
+- name: Update CA store
+  command: /usr/sbin/update-ca-certificates
+
+- name: Restart Portainer
+  community.docker.docker_compose_v2:
+    project_src: /app/portainer
+    state: restarted

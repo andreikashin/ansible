@@ -1,0 +1,7 @@
+---
+- name: Deploy Portainer Server
+  hosts: portainer_node
+  become: yes
+  
+  roles:
+    - portainer

@@ -1,0 +1,40 @@
+---
+- name: Install ca-certificates package
+  apt:
+    name: ca-certificates
+    state: present
+    update_cache: yes
+
+- name: Copy custom CA certificates
+  copy:
+    src: "{{ item }}"
+    dest: "{{ ca_certificates_system_path }}/custom_{{ item | basename }}"
+    mode: '0644'
+  with_fileglob:
+    - "{{ trusted_certs_local_path }}"
+  notify: Update CA store
+
+- name: Flush handlers to apply certs immediately
+  meta: flush_handlers
+
+- name: Create app directory
+  file:
+    path: "{{ portainer_app_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy Docker Compose template
+  template:
+    src: compose.yml.j2
+    dest: "{{ portainer_app_dir }}/compose.yml"
+    mode: '0644'
+  notify: Restart Portainer
+
+# If the config has changed - restart immediately
+- meta: flush_handlers
+
+- name: Start Portainer Stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ portainer_app_dir }}"
+    state: present
+    pull: always

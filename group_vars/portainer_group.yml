@@ -1,0 +1,13 @@
+# Settings for Portainer
+portainer_app_dir: "/app/portainer"
+portainer_data_dir: "portainer_data"
+
+# Path where Ansible will look for certificates ON YOUR COMPUTER
+trusted_certs_local_path: "roles/portainer/files/trust/*"
+
+# Path inside the Linux server to place custom CA
+ca_certificates_system_path: "/usr/local/share/ca-certificates"
+
+portainer_port_agent: "8000"  # Tunnel for agents
+portainer_port_https: "9443"  # HTTPS
+portainer_port_http: "9000"   # HTTP
