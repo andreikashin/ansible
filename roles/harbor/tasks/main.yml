@@ -1,0 +1,116 @@
+---
+- name: Install dependencies
+  apt:
+    name:
+      - curl
+      - tar
+    state: present
+    update_cache: yes
+
+# === БЛОК 1: БЕЗОПАСНАЯ ОСТАНОВКА ===
+
+- name: Check for existing Harbor installation
+  stat:
+    path: "{{ harbor_install_dir }}/docker-compose.yml"
+  register: existing_harbor_compose
+
+- name: Check for existing Harbor config
+  stat:
+    path: "{{ harbor_install_dir }}/harbor.yml"
+  register: existing_harbor_conf
+
+- name: Backup old harbor.yml (Just in case)
+  copy:
+    src: "{{ harbor_install_dir }}/harbor.yml"
+    dest: "{{ harbor_install_dir }}/harbor.yml.bak_{{ ansible_date_time.iso8601 }}"
+    remote_src: yes
+  when: existing_harbor_conf.stat.exists
+
+- name: Stop existing Harbor containers (Gracefully)
+  community.docker.docker_compose_v2:
+    project_src: "{{ harbor_install_dir }}"
+    state: absent # Это равносильно 'docker compose down'
+  when: existing_harbor_compose.stat.exists
+  ignore_errors: yes # Если композ файл битый, не падаем, а просто идем переустанавливать
+
+# === БЛОК 2: ПОДГОТОВКА ФАЙЛОВОЙ СИСТЕМЫ ===
+
+- name: Create Harbor directory
+  file:
+    path: "{{ harbor_install_dir }}"
+    state: directory
+    mode: '0755'
+
+# === БЛОК 3: СКАЧИВАНИЕ И РАСПАКОВКА ===
+
+# Мы качаем инсталлер, если его нет ИЛИ если мы хотим обновить версию
+# (можно усложнить логику проверки версий, но для простоты качаем, если нет install.sh)
+- name: Check if installer exists
+  stat:
+    path: "{{ harbor_install_dir }}/install.sh"
+  register: installer_script
+
+- name: Download Harbor Offline Installer
+  get_url:
+    url: "https://github.com/goharbor/harbor/releases/download/v{{ harbor_version }}/harbor-offline-installer-v{{ harbor_version }}.tgz"
+    dest: "/tmp/harbor.tgz"
+    mode: '0644'
+  when: not installer_script.stat.exists
+
+- name: Extract Harbor (Overwrite binaries)
+  unarchive:
+    src: "/tmp/harbor.tgz"
+    dest: "{{ harbor_install_dir }}"
+    extra_opts: [--strip-components=1]
+    remote_src: yes
+    creates: "{{ harbor_install_dir }}/install.sh"
+
+# === БЛОК 4: КОНФИГУРАЦИЯ И ЗАПУСК ===
+
+- name: Generate harbor.yml config
+  template:
+    src: harbor.yml.j2
+    dest: "{{ harbor_install_dir }}/harbor.yml"
+  register: harbor_config_status
+
+# Если конфиг изменился - нужно пересобрать (prepare) конфиги nginx/db
+- name: Run Harbor Prepare Script
+  shell: ./prepare
+  args:
+    chdir: "{{ harbor_install_dir }}"
+  when: harbor_config_status.changed
+  notify: Restart Harbor
+
+# Если это совсем чистая установка (или мы удалили docker-compose.yml), запускаем install.sh
+- name: Run Install Script (Initial Setup)
+  shell: ./install.sh --with-trivy
+  args:
+    chdir: "{{ harbor_install_dir }}"
+  # Запускаем только если нет docker-compose.yml (значит ./prepare не создавал его ранее или это первая установка)
+  when: not existing_harbor_compose.stat.exists
+
+# Если Docker Compose файл есть, просто убедимся, что он запущен
+- name: Ensure Harbor is running
+  community.docker.docker_compose_v2:
+    project_src: "{{ harbor_install_dir }}"
+    state: present
+
+# === БЕЗОПАСНОСТЬ SSH ===
+
+- name: Disable password authentication for SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s' # Проверка синтаксиса перед сохранением!
+  notify: Restart SSH
+
+- name: Disable root login via SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Restart SSH

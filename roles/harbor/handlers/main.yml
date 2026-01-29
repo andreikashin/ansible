@@ -1,0 +1,10 @@
+---
+- name: Restart Harbor
+  community.docker.docker_compose_v2:
+    project_src: "{{ harbor_install_dir }}"
+    state: restarted
+
+- name: Restart SSH
+  service:
+    name: ssh
+    state: restarted

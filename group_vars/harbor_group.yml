@@ -1,0 +1,5 @@
+harbor_version: "2.10.0"
+harbor_install_dir: "/app/harbor"
+harbor_data_dir: "/data/harbor"
+
+harbor_port_http: "80"
