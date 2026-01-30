@@ -1,0 +1,40 @@
+---
+- name: Install QEMU Guest Agent and update cache
+  apt:
+    name: qemu-guest-agent
+    state: present
+    update_cache: yes
+    
+- name: Create app directory
+  file:
+    path: "{{ traefik_install_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create acme.json for certificates
+  file:
+    path: "{{ traefik_install_dir }}/acme.json"
+    state: touch
+    mode: '0600'  # CRITICALLY IMPORTANT for Traefik
+
+- name: Create external network 'traefik_net'
+  community.docker.docker_network:
+    name: traefik_net
+    state: present
+
+- name: Generate traefik.yml config
+  template:
+    src: traefik.yml.j2
+    dest: "{{ traefik_install_dir }}/traefik.yml"
+  notify: Restart Traefik
+
+- name: Generate compose.yml
+  template:
+    src: compose.yml.j2
+    dest: "{{ traefik_install_dir }}/compose.yml"
+  notify: Restart Traefik
+
+- name: Start Traefik
+  community.docker.docker_compose_v2:
+    project_src: "{{ traefik_install_dir }}"
+    state: present

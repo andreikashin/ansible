@@ -1,0 +1,6 @@
+---
+- name: Deploy Traefik Reverse Proxy
+  hosts: traefik_group
+  become: true
+  roles:
+    - traefik
