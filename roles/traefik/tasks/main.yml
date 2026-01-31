@@ -18,14 +18,19 @@
     mode: '0600'  # CRITICALLY IMPORTANT for Traefik
 
 - name: Create external network 'traefik_net'
-  community.docker.docker_network:
-    name: traefik_net
-    state: present
+  shell: "docker network create traefik_net || true"
+  changed_when: false
 
 - name: Generate traefik.yml config
   template:
     src: traefik.yml.j2
     dest: "{{ traefik_install_dir }}/traefik.yml"
+  notify: Restart Traefik
+
+- name: Generate dynamic_conf.yml
+  template:
+    src: "{{ traefik_dynamic_conf_template }}"
+    dest: "{{ traefik_install_dir }}/dynamic_conf.yml"
   notify: Restart Traefik
 
 - name: Generate compose.yml

@@ -1,18 +1,25 @@
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.6
     container_name: traefik
-    restart: always
+    restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    environment:
+      - CF_DNS_API_TOKEN={{ cloudflare_api_token }}
     ports:
       - "80:80"
       - "443:443"
       # - "8080:8080" # You can open this for testing, but it's better to keep it closed and access via the domain
+    command:
+      - "--configFile=/traefik.yml"
+      - "--log.level=DEBUG"
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yml:/traefik.yml:ro
       - ./acme.json:/acme.json
+      - ./dynamic_conf.yml:/dynamic_conf.yml:ro
     networks:
       - traefik_net
     labels:
@@ -21,10 +28,9 @@ services:
       - "traefik.http.routers.dashboard.rule=Host(`{{ traefik_dashboard_domain }}`)"
       - "traefik.http.routers.dashboard.service=api@internal"
       - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.dashboard.middlewares=auth"
-      # Middleware for password
-      - "traefik.http.middlewares.auth.basicauth.users={{ traefik_dashboard_auth }}"
+      - "traefik.http.routers.dashboard.middlewares=admin-basic-auth@file"
 
 networks:
   traefik_net:

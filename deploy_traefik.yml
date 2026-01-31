@@ -1,6 +1,58 @@
 ---
-- name: Deploy Traefik Reverse Proxy
+- name: Prepare Host and Deploy Traefik
   hosts: traefik_group
   become: true
+  vars:
+    # Specify Docker version here if needed; can remain unchanged
+    docker_package_state: present
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Basic Packages and QEMU Agent
+      apt:
+        name:
+          - qemu-guest-agent
+          - curl
+          - python3-pip  # pip is required
+        state: present
+
+    # IMPORTANT: Remove package from repository
+    - name: Remove system python3-docker
+      apt:
+        name: python3-docker
+        state: absent
+
+    # IMPORTANT: Install correct library via PIP
+    - name: Install Docker SDK via pip
+      pip:
+        name:
+          - docker
+          - requests
+        state: present
+        # This flag is needed for Debian 12/13 to allow pip installation
+        extra_args: "--break-system-packages"
+
+    # === Installing Docker ===
+    - name: Check if Docker is installed
+      command: docker --version
+      register: docker_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Download Docker install script
+      get_url:
+        url: https://get.docker.com
+        dest: /tmp/get-docker.sh
+        mode: '0755'
+      when: docker_check.failed
+
+    - name: Run Docker install script
+      command: /tmp/get-docker.sh
+      when: docker_check.failed
+
   roles:
     - traefik
