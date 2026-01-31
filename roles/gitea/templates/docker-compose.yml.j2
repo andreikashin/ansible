@@ -16,26 +16,19 @@ services:
       # Gitea Configuration
       - GITEA__server__ROOT_URL=https://{{ node_domain }}/
       - GITEA__server__DOMAIN={{ node_domain }}
-      - GITEA__server__PROTOCOL=https
+      - GITEA__server__PROTOCOL=http
       - GITEA__server__HTTP_PORT={{ gitea_container_http_port }}
-      
-      # Internal paths to SSL certs (mapped via volumes below)
-      - GITEA__server__CERT_FILE=/data/certs/gitea.crt
-      - GITEA__server__KEY_FILE=/data/certs/gitea.key
 
     ports:
-      # Expose HTTPS and HTTP (mapped to internal port 3000)
-      - "443:{{ gitea_container_http_port }}"
-      - "80:{{ gitea_container_http_port }}"
+      # Expose HTTP for reverse proxy
+      - "{{ gitea_container_http_port }}:{{ gitea_container_http_port }}"
       - "2222:22"
 
     volumes:
       # Persistent Gitea Data (Repositories, DB)
       - gitea_data:/data
       
-      # Mount SSL certificates (Read-Only)
-      - {{ gitea_ssl_dir }}/gitea.crt:/data/certs/gitea.crt:ro
-      - {{ gitea_ssl_dir }}/gitea.key:/data/certs/gitea.key:ro
+      # Custom CA bundle (Read-Only)
       - {{ gitea_ssl_dir }}/gitea_bundle.crt:/etc/ssl/cert.pem:ro
       
       # Timezone synchronization with Host

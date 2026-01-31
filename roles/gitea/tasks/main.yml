@@ -1,18 +1,5 @@
 ---
-# --- 1. PRE-FLIGHT CHECKS (Local) ---
-- name: "Pre-flight: Check if Gitea SSL Key exists locally"
-  stat:
-    path: "{{ role_path }}/files/ssl/gitea.key"
-  delegate_to: localhost
-  become: no
-  register: ssl_key_check
-
-- name: "Fail if SSL Key is missing"
-  fail:
-    msg: "ERROR: Private key missing! Put gitea.key and gitea.crt in {{ role_path }}/files/ssl/"
-  when: not ssl_key_check.stat.exists
-
-# --- 2. INSTALL DOCKER COMPOSE (MANUAL) ---
+# --- 1. INSTALL DOCKER COMPOSE (MANUAL) ---
 - name: Create directory for Docker CLI plugins
   file:
     path: /usr/local/lib/docker/cli-plugins
@@ -25,7 +12,7 @@
     dest: /usr/local/lib/docker/cli-plugins/docker-compose
     mode: '0755' # Make executable immediately (+x)
 
-# --- 3. SERVER PREPARATION ---
+# --- 2. SERVER PREPARATION ---
 - name: Create installation directories
   file:
     path: "{{ item }}"
@@ -42,19 +29,27 @@
     owner: '1000'
     group: '1000'
 
-# --- 4. SET UP TRUST (HOST LEVEL) ---
-# Install Jenkins certificate directly on the LXC host, not inside Docker
-- name: Upload Jenkins CA to Host System
+# --- 3. SET UP TRUST (HOST LEVEL) ---
+- name: Upload Gitea CA to Host System
   copy:
-    src: "trust/root_ca.crt"
+    # Ansible возьмет любой файл из папки files/trust/
+    src: "{{ item }}"
     dest: "{{ gitea_ssl_dir }}/root_ca.crt"
     mode: '0644'
     owner: '1000'
     group: '1000'
+  with_fileglob:
+    - "{{ role_path }}/files/trust/*"
+  when: item is not match(".*\\.template$")
   notify: Restart Gitea
 
 - name: Create custom CA bundle for Gitea
-  shell: "cat /etc/ssl/certs/ca-certificates.crt {{ gitea_ssl_dir }}/root_ca.crt > {{ gitea_ssl_dir }}/gitea_bundle.crt"
+  shell: >
+    if [ -f "{{ gitea_ssl_dir }}/root_ca.crt" ]; then
+      cat /etc/ssl/certs/ca-certificates.crt "{{ gitea_ssl_dir }}/root_ca.crt" > "{{ gitea_ssl_dir }}/gitea_bundle.crt";
+    else
+      cat /etc/ssl/certs/ca-certificates.crt > "{{ gitea_ssl_dir }}/gitea_bundle.crt";
+    fi
   notify: Restart Gitea
 
 - name: Fix permissions on custom bundle
@@ -65,33 +60,14 @@
     group: '1000'
   notify: Restart Gitea
 
-# --- 5. UPLOAD SSL FOR GITEA ---
-- name: Upload Gitea Server Certificate (Public)
-  copy:
-    src: "ssl/gitea.crt"
-    dest: "{{ gitea_ssl_dir }}/gitea.crt"
-    mode: '0644'
-    owner: '1000'
-    group: '1000'
-  notify: Restart Gitea
-
-- name: Upload Gitea Server Key (Private)
-  copy:
-    src: "ssl/gitea.key"
-    dest: "{{ gitea_ssl_dir }}/gitea.key"
-    mode: '0600'
-    owner: '1000'
-    group: '1000'
-  notify: Restart Gitea
-
-# --- 6. DOCKER CONFIGURATION ---
+# --- 4. DOCKER CONFIGURATION ---
 - name: Generate docker-compose.yml
   template:
     src: "docker-compose.yml.j2"
     dest: "{{ gitea_install_dir }}/docker-compose.yml"
   notify: Restart Gitea
 
-# --- 7. START ---
+# --- 5. START ---
 - name: Ensure persistent data volume exists
   command: docker volume create gitea_data
   register: volume_create
