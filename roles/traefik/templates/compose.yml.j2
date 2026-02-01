@@ -6,6 +6,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      - CF_API_EMAIL={{ cloudflare_api_email }}
       - CF_DNS_API_TOKEN={{ cloudflare_api_token }}
     ports:
       - "80:80"
@@ -31,6 +32,16 @@ services:
       - "traefik.http.routers.dashboard.tls=true"
       - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
       - "traefik.http.routers.dashboard.middlewares=admin-basic-auth@file"
+
+  tunnel:
+    container_name: cloudflared
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN={{ cloudflare_tunnel_token }}
+    networks:
+      - traefik_net
 
 networks:
   traefik_net:
