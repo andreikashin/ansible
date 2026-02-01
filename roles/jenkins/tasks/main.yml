@@ -9,14 +9,14 @@
   file:
     path: "{{ jenkins_install_dir }}/certs"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy custom CA certificate
   copy:
     # Ansible возьмет любой файл из папки files/trust/
     src: "{{ item }}"
     dest: "{{ jenkins_install_dir }}/certs/root_ca.crt"
-    mode: '0644'
+    mode: "0644"
   with_fileglob:
     - "roles/jenkins/files/trust/*"
   notify: Restart Jenkins
@@ -36,7 +36,7 @@
   file:
     path: "{{ jenkins_install_dir }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Ensure data directory permissions are ROOT
   file:
@@ -50,7 +50,7 @@
   template:
     src: compose.yml.j2
     dest: "{{ jenkins_install_dir }}/compose.yml"
-    mode: '0644'
+    mode: "0644"
   notify: Restart Jenkins
 
 - name: Start Jenkins via Docker Compose

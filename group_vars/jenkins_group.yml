@@ -3,3 +3,10 @@ jenkins_install_dir: /app/jenkins
 # Internal container ports (matched to your Docker Compose template)
 jenkins_http_port: 8080
 jenkins_agent_port: 50000
+
+jenkins_csp_policy: "sandbox allow-scripts; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+
+jenkins_java_opts: >-
+  -Djenkins.install.runSetupWizard=false
+
+#  -Dhudson.model.DirectoryBrowserSupport.CSP="{{ jenkins_csp_policy }}"
