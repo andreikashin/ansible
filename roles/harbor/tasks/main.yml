@@ -101,8 +101,13 @@
   register: harbor_config_status
 
 # Если конфиг изменился - нужно пересобрать (prepare) конфиги nginx/db
+# --with-trivy here is mandatory, not optional. Without it prepare regenerates
+# docker-compose.yml WITHOUT the scanner service, which strips Trivy on every
+# config change. That is how it vanished from harbor.v6rk.net: install.sh
+# --with-trivy below runs only on a clean install, while this prepare runs on
+# every template edit and quietly removes the scanner.
 - name: Run Harbor Prepare Script
-  shell: ./prepare
+  shell: ./prepare --with-trivy
   args:
     chdir: "{{ harbor_install_dir }}"
   when: harbor_config_status.changed
