@@ -241,6 +241,64 @@ The last play checks what the store is for rather than whether the process is up
 that every drive is online and the backend really is in erasure mode, and that an
 object can be written, read back byte for byte, and deleted.
 
+## Container registry (Harbor)
+
+`deploy_harbor.yml`, role `roles/harbor`. State of `harbor.v6rk.net` as of
+2026-09-08, and two things to fix before anyone runs the role against it.
+
+### The live host was not provisioned by this role
+
+Its `harbor.yml` differs from `roles/harbor/templates/harbor.yml.j2` in ways
+that matter:
+
+| | live host | template |
+|---|---|---|
+| `hostname` | `harbor.lan` | `harbor.v6rk.net` |
+| `external_url` | absent | `https://harbor.v6rk.net` |
+| `https:` block | active, pointing at `/data/cert/harbor.{crt,key}` | commented out |
+
+Those certificate files do not exist. Harbor serves plain HTTP on port 80 and
+TLS terminates at the proxy, which is what the template already assumes. The
+running `docker-compose.yml` cannot have come from the live `harbor.yml`
+either: it publishes `8080/tcp -> 0.0.0.0:80` and mounts no nginx certificate.
+
+### Running the role against this host today will break it
+
+This is why the section exists. The role templates `harbor.yml`, sees it
+changed, and runs `./prepare`. **`prepare` deletes `common/config` before it
+validates anything**, so it wipes the core, db and jobservice configuration and
+then dies on the missing certificate. The containers keep running on config
+they already loaded, so nothing looks wrong until the next restart, when Harbor
+does not come back.
+
+Verified on 2026-09-08: it happened, and the recovery was restoring `common/`
+from a backup taken beforehand. Take that backup:
+
+```bash
+D=/home/user/harbor
+B=/home/user/harbor-backup-$(date +%Y%m%d-%H%M%S)
+sudo mkdir -p "$B"
+sudo cp -a "$D/docker-compose.yml" "$D/harbor.yml" "$D/common" "$B/"
+```
+
+Rollback is `sudo cp -a "$B/common" "$D/common"`, plus restoring
+`docker-compose.yml` and `sudo docker compose up -d` if compose changed too.
+
+### Improvement: reconcile the host with the template
+
+Wants its own maintenance window. Changing `hostname` and `external_url` on a
+live registry is a deliberate reconfiguration, not something to let ride along
+with an unrelated playbook run. Jenkins and k3s both pull from it.
+
+### No vulnerability scanner is running
+
+`install.sh --with-trivy` fires only on a clean install, and until the `prepare`
+task also carried the flag, every config change regenerated `docker-compose.yml`
+without the scanner service. Both calls carry it now, so a clean install gets
+Trivy and the existing host will get it when the reconciliation above happens.
+Until then every artifact reports `Unsupported` in the Vulnerabilities column
+and no project can turn on scan-on-push.
+
 ## Backups
 
 `backup_proxmox_vms.yml` backs up Proxmox guests (both QEMU VMs and LXC CTs) via
