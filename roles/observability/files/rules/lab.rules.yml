@@ -156,6 +156,33 @@ groups:
             горячий запас, пересборка должна была начаться сама, проверить
             lab_mdraid_sync_percent.
 
+  - name: lab-power
+    interval: 1m
+    rules:
+      # Резервирование питания: на серверах с двумя БП потеря одного БП
+      # лишает сервер резервирования и переводит его на одну линию/фазу.
+      - alert: HostPowerSupplyRedundancyLost
+        expr: lab_psu_redundancy_ok == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Потеряно резервирование питания на {{ $labels.node }}"
+          description: >-
+            На сервере {{ $labels.node }} активен только один блок питания из двух
+            (Redundancy Lost). Проверить входящую линию 220V, сетевой кабель или защёлку БП.
+
+      - alert: HostPowerSupplyFailed
+        expr: lab_psu_ok == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Блок питания PSU {{ $labels.psu }} на {{ $labels.node }} неисправен или обесточен"
+          description: >-
+            Блок питания {{ $labels.psu }} на {{ $labels.node }} находится в состоянии сбоя
+            или потерял входящее питание (Power Supply AC lost).
+
   - name: lab-storage
     interval: 1m
     rules:
